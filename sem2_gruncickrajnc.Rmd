@@ -1,0 +1,336 @@
+---
+title: "Seminarska naloga 2 - ponovljiva analiza podatkov"
+author: "Lana Grunčić Krajnc"
+date: "9. december 2022"
+output:
+  pdf_document: default
+  rmarkdown::pdf_document:
+    toc: true
+    toc_depth: 2
+    fig_caption: yes
+    includes:
+header-includes:
+  - \pagenumbering{gobble}
+  - \usepackage[slovene]{babel}
+params:
+  printcode: yes
+  printresults: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results= params$printresults, warning = FALSE)
+```
+
+```{r, include=FALSE}
+library(haven)
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+library(tinytex)
+library(tidyverse)
+library(gridExtra)
+```
+
+\newpage
+
+```{=latex}
+\setcounter{tocdepth}{4}
+\tableofcontents
+```
+
+\newpage
+\pagenumbering{arabic}
+
+# 1. Uvod
+
+Jetra so organ v človeškem telesu, ki skrbi za razstrupljanje. V kolikor je njihovo delovanje okrnjeno, telo preplavijo strupi. Vitalne funkcije, kot je na primer strjevanje krvi, so ogrožene. Bolezni jeter so pogosto pozno odkrite, saj je narava tega regenerativnega organa takšna, da v začetku kompenzira izgubo funkcije. Presaditev jeter je tako pogosto edino primerno zdravljenje za paciente z odpovedjo jeter. (spletna stran BZgA)
+
+V pričujoči nalogi se bomo znotraj teme presajevanja jeter, osredotočili na razlike med spoloma pacientov prejemnikov organa. Točneje, zanima nas, ali je spol bolnika povezan z nujnostjo operacije presaditve jeter.
+
+## 1.1. Raziskovalno vprašanje in hipoteza
+
+Da bi lahko odgovorili na naše raziskovalno vprašanje, ali je spol bolnika povezan z nujnostjo operacije presaditve jeter, smo postavili naslednjo hipotezo in njej pripadajočo alternativno hipotezo.
+
+H0: Verjetnost, da je presaditev jeter za žensko z okvaro jeter nujna, je enaka verjetnosti, da je presaditev jeter za moškega z okvaro jeter nujna. Med spremenljivkama spol in nujnost operacije ni povezave.
+
+H1: Verjetnost, da je presaditev jeter za žensko z okvaro jeter nujna, ni enaka verjetnosti, da je presaditev jeter za moškega z okvaro jeter nujna. Spremenljivki spol in nujnost operacije sta povezani.
+
+H0 bomo preverjali s 95% zaupanja.
+
+# 2. Raziskava
+
+## 2.1. Ozadje
+
+Bolniki, ki čakajo na presaditev jeter so glede nujnosti presaditve razdeljeni v dve kategoriji. V kategoriji načrtovana presaditev jeter je bolnik, za katerega je presaditev najboljše zdravljenje, ob tem pa predvidevamo, da bolnik lahko prenese večtedensko evaluacijo in do nekaj mesecev čaka na kar najbolj optimalen organ. V kategoriji nujna presaditev je bolnik pri katerem zaradi akutne bolezni pričakujemo smrt v nekaj dneh, zato je evaluacija omejena na najnujnejše, sprejmemo pa vsak organ, ki ustreza minimalnim pogojem skladnosti. (Kušar, 2022)
+
+Med moškimi in ženskami obstajajo tako sociološke kot biološke razlike, ki botrujejo jetrnim obolenjem. Kot primer razlike med spoloma lahko opazujemo zlorabo alkohola, ki je sicer eden pomembnejših dejavnik tveganja za jetrna obolenja. Tako moški pogosteje zlorabljajo alkohol, a se posledite tovrstne zlorabe v obliki okvare jeter zgodijo pri povprečni ženski hitreje, kot pri moškem. Ženske pogosteje umrejo v procesu čakanja na načrtovano presaditev kot moški. Ženske sicer predstavljaljo v zahodnem svetu 30% prejemnikov organa jeter. (Burra et al. 2013)
+
+Kot povedano uvodoma, v pričujoči raziskavi, preverjamo ali sta spol in nujnost operacije povezani.
+
+## 2.2. Podatki vključeni v raziskavo
+
+Vzorec za našo raziskavo je predstavljala baza podatkov o vseh presaditvah jeter v državi X v bolnišnici Xbol med januarjem leta 2007 in junijem 2020, ki smo jo prejeli v novembru 2022.
+
+```{r, include=FALSE}
+#nalozimo podatke
+Leber = read_sav("~/lana doc/2022 Uporabna statistika/baze_podatkov/Lebertabelle_anon.sav")
+
+summary(Leber$date_Tx)
+```
+
+Anonimizirana baza podatkov je zajemala podatke o 274 presaditvah. V 81 spremenljivkah so bili zajeti podatki tako o donorjih kot bolnikih prejemnikih organov. Za našo raziskavo sta bili pomembni spremenljivki *recipient_urgency* in *sex*. Spremenljivka *recipient_urgency* je razdelila posamezni primer iz baze podatkov glede na nujnost presaditve v dve kategoriji. Pri tem je kategorija *elective* predstavljala kategorijo načrtovane presaditve, *HU* pa kategorijo nujne presaditve. Spremenljivka *sex* je pod kategorijo *m* zabeležila moški spol bolnika prejemnika organa, spremenljivka *w* pa ženski spol prejemnika organa.
+
+V postopku čiščenja podatkov smo iz vzorca izključili vse enote, pri katerih je bil zabeležen manjkajoč podatek bodisi za spremenljivko *recipient_urgency*, bodisi za spremenljivko *sex*. Pri spremenljivki *recipient_urgency* je bilo 51 manjkajočih podatkov, pri spremenljivki *sex* pa 17.
+
+Po čiščenju podatkov smo tako opazovali dve spremenljivki (*recipient_urgency* in *sex*) na 223 primerih presaditve.
+
+```{r, include=FALSE}
+
+
+#prva delovna - samo spol in nujnost operacije
+Leber1 = read_sav("~/lana doc/2022 Uporabna statistika/baze_podatkov/Lebertabelle_anon.sav", col_select = c("sex", "recipient_urgency"))
+Leber1 = na.omit(Leber1) #izključim NA vrednosti
+
+Leber1$sex = as_factor(Leber1$sex) #shranim faktorsko
+Leber1$recipient_urgency = as_factor(Leber1$recipient_urgency)
+
+Tabela = table(Leber1$recipient_urgency, Leber1$sex) #kontingencna tabela za delo naprej
+
+
+```
+
+### 2.2.1. Predstavitev vzorca po čiščenju
+
+```{r}
+
+tabelaHUObs = table(Leber1$recipient_urgency, Leber1$sex)
+tabelaHUObs = addmargins(tabelaHUObs)
+rownames(tabelaHUObs) = c("načrtovana presaditev", "nujna presaditev", "skupaj")
+colnames(tabelaHUObs) = c("moški", "ženske", "skupaj")
+
+
+kbl(tabelaHUObs, caption = "Vzorec raziskave")%>%
+  kable_styling(latex_options = c("full_width", "hold_position"), position = "center")%>%
+  column_spec(1, width = "5cm", border_right = TRUE)%>% 
+  column_spec(4, width = "4cm")%>%
+  column_spec(2, width = "2cm")%>%
+  column_spec(3, width = "2cm")%>%
+  row_spec(0, hline_after = T)%>%
+  row_spec(1, background = "#F8766D")%>%
+  row_spec(2, background = "#00BFC4")
+
+
+
+
+```
+
+
+
+
+
+
+```{r, fig.height=3}
+
+ggplot(Leber1, aes(sex, fill = recipient_urgency))+
+  ggtitle("Graf 1: Število operacij glede na nujnost in spol prejemnika organa")+
+  theme(plot.title=element_text(size=9))+
+  geom_bar(position = "dodge")+
+  scale_fill_discrete(name = "nujnost", labels = c("načrtovana presaditev", "nujna presaditev"))+
+  scale_x_discrete(labels = c("moški", "ženske"))+
+  labs(y= "število presaditev", x = "spol")
+
+```
+
+
+
+## 2.3. Podatki na vzorcu
+
+Opisna statistika nam pravi, da za naš vzorec 223 presaditev velja, da so ženske presaditve pogosteje kategorizirane kot nujna presaditev napram moškim presaditvam. In sicer je nujnih presaditev pri ženskah bilo 12,2 %, preostalih 87.7 % presaditev pa načrtovanih. Pri moških je delež nujnih presaditev predstavljal zgolj 1,1 %, nasproti preostalim 98,9 % presaditev, ki so spadale pod kategorijo načrtovane presaditve.
+
+
+
+```{r}
+#### delez moskih, ki potrebujejo 
+A = length(Leber1$recipient_urgency[which(Leber1$recipient_urgency == "HU" & Leber1$sex == "m") ])
+B =length(Leber1$recipient_urgency[which(Leber1$sex == "m") ])
+nujnaMoski = A/B
+nacrtovanaMoski = 1 - nujnaMoski
+
+
+#### delež žensk
+#### delez moskih, ki potrebujejo 
+Az = length(Leber1$recipient_urgency[which(Leber1$recipient_urgency == "HU" & Leber1$sex == "w") ])
+Bz =length(Leber1$recipient_urgency[which(Leber1$sex == "w") ])
+nujnaZenske = Az/Bz
+nacrtovanaZenske = 1 - nujnaZenske
+
+
+tabelaDelezi = cbind(c(nacrtovanaMoski,nujnaMoski), c(nacrtovanaZenske, nujnaZenske))
+tabelaDelezi = rbind(tabelaDelezi, c(nacrtovanaMoski+nujnaMoski, nacrtovanaZenske+nujnaZenske))
+rownames(tabelaDelezi) = c("načrtovana presaditev", "nujna presaditev", "skupaj")
+colnames(tabelaDelezi) = c("moški", "ženske")
+
+kbl(tabelaDelezi, digits = 3, caption = "Razmereje med načrtovanimi in nujnimi operacijami za moške in za ženske")%>%
+  kable_styling(latex_options = c("full_width", "hold_position"), position = "center")%>%
+  column_spec(1, width = "5cm", border_right = TRUE)%>% 
+  column_spec(2, width = "3cm")%>%
+  column_spec(3, width = "3cm")%>%
+  row_spec(0, hline_after = T)%>%
+  row_spec(1, background = "#F8766D")%>%
+  row_spec(2, background = "#00BFC4")
+
+```
+
+
+
+
+
+
+```{r, fig.height=3}
+DelezMZ = ggplot() + 
+  geom_bar(aes(x= sex, fill = recipient_urgency), data = Leber1, position = "fill")
+ggb = ggplot_build(DelezMZ)
+df2 = data.frame(y = ggb$data[[1]][["y"]])
+
+DelezMZ + geom_label(
+  aes(x = rep(c(1,2), each = 2), label = scales::percent(y), y = y), 
+  data = df2
+)+
+  ggtitle("Graf 2: Primerjava razmerja med načrtovanimi in nujnimi presaditvami za moške in za ženske")+
+  theme(plot.title=element_text(size=9))+
+  labs(y = "delež", x="spol") +
+  scale_x_discrete(labels = c("moški", "ženske"))+
+  scale_fill_discrete(name = "nujnost", labels = c("načrtovana presaditev", "nujna presaditev"))+
+  coord_flip()
+
+```
+
+
+
+# 3. Statistično testiranje
+
+Za opažanje na vzorcu, da sta spol in nujnost presaditve jeter povezani, bomo preverili ali je statistično značilno. Torej bomo, s pomočjo primernega statističnega testa, preverili ali lahko podatke z vzorca posplošimo na populacijo bolnikov, ki čakajo na presaditev jeter.
+
+Za preverjanje povezave med dvema opisnima spremenljivkama se uporablja $\chi^{2}$ test. V postopku podatke zapišemo v ti. kontingenčno tabelo opazovanih frekvenc. Spodaj izpisana kontingenčna tabela je enaka povzetku spremenljivk, opazovanih na vzorcu, ki je zapisana že v točki 2.2.1,
+
+
+```{r}
+
+kbl(tabelaHUObs, caption = "Kontingenčna tabela opazovanih frekvenc = Vzorec raziskave")%>%
+  kable_styling(latex_options = c("full_width", "HOLD_position"), position = "center")%>%
+  column_spec(1, width = "5cm", border_right = TRUE)%>% 
+  column_spec(4, width = "4cm")%>%
+  column_spec(2, width = "2cm")%>%
+  column_spec(3, width = "2cm")%>%
+  row_spec(0, hline_after = T)%>%
+  row_spec(1, background = "#F8766D")%>%
+  row_spec(2, background = "#00BFC4")
+
+
+```
+
+V naslednjem koraku $\chi^{2}$ testa podatke iz zgornje tabele primerjamo s pričakovanimi frekvencami. Pričakovane frekvence, predstavljene v spodnji kontingenčni tabeli so rezultat $\chi^{2}$. Izračunane pričakovane vrednosti spremenljivk veljajo, v kolikor velja ničelna hipoteza, da opazovani spremenljivki nista povezani. V naši ničelni hipotezi (H0 v točki 1.1.) smo zapisali, da trdimo, da med spremenljivkama spol in nujnost operacije ni povezave.
+
+
+
+```{r, include=FALSE}
+Chi_ = chisq.test(Leber1$recipient_urgency, Leber1$sex, correct = FALSE)
+#Chi_Pop = chisq.test(Leber1$sex, Leber1$recipient_urgency, correct = TRUE)
+
+Chi_$p.value
+Chi_$expected
+#Chi_Pop$p.value
+#Chi_Pop$expected
+
+#class(Leber1$sex)
+```
+
+
+```{r}
+#tabelaHUExp = Chi_Pop$expected
+#tabelaHUExp <- addmargins(tabelaHUExp)
+#colnames(tabelaHUExp) = c("načrtovana presaditev", "nujna presaditev", "skupaj")
+#rownames(tabelaHUExp) = c("moski", "zenske", "skupaj")
+
+#kbl(tabelaHUExp)%>%
+  #kable_styling(full_width = F)
+
+
+
+tabelaHUExp1 = Chi_$expected
+tabelaHUExp1 <- addmargins(tabelaHUExp1)
+rownames(tabelaHUExp1) = c("načrtovana presaditev", "nujna presaditev", "skupaj")
+colnames(tabelaHUExp1) = c("moški", "ženske", "skupaj")
+
+
+kbl(tabelaHUExp1, digits = 1, caption = "Kontingenčna tabela pričakovanih frekvenc")%>%
+  kable_styling(latex_options = c("full_width", "HOLD_position"), position = "center")%>%
+  column_spec(1, width = "5cm", border_right = TRUE)%>% 
+  column_spec(4, width = "4cm")%>%
+  column_spec(2, width = "2cm")%>%
+  column_spec(3, width = "2cm")%>%
+  row_spec(0, hline_after = T)%>%
+  row_spec(1, background = "#F8766D")%>%
+  row_spec(2, background = "#00BFC4")
+
+
+```
+
+Iz zgornje tabele poleg pričakovanih vrednosti spremenljivk v primeru nepovezanosti opazimo še nekaj pomembnega. In sicer, da je ena izmed pričakovanih vrednosti, in sicer pričakovano število nujnih presaditev pri ženskah, manjše od pet. Za smiselno uporabo parametričnih testov, primer katerega je tudi $\chi^{2}$ test, obstajajo statistične predpostavke. V primeru $\chi^{2}$ testa je ta predpostavka, da ne sme biti niti ena pričakovana vrednost v kontingenčni tabeli manjša od pet. (Uporabna statistika)
+
+Ko ne zadostimo kateri od predpostavk parametričnega testa, se poslužimo neparametrične različice testa.
+
+
+Neparametrični dvojnik $\chi^{2}$ testa predstavlja Fisherjev eksaktni test. Podobno kot $\chi^{2}$ test tudi pri Fisherjevem eksaktnem testu pod ničelno domnevno predvidevamo, da je povezava med dogodki naključna. V našem primeru pod ničelno domnevno trdimo, da je povezava med nujnostjo presaditve jeter in spolom bolnika prejemnika naključna. V kolikor pa se izkaže da je verjetnost, da je povezava med spolom in nujnostjo operacije naključna manjša od 5 %, bomo ničelno hipotezo zavrnili. Zavrnili bomo domnevo o neodvisnosti pri stopnji zaupanja 95 %.
+
+```{r, include = FALSE}
+#naredimo fisherjev exaktni, ki je namenjen ravno 2*2 kontingenčnim tabelam
+FisherLeber = fisher.test(Tabela)
+
+FisherLeber
+FisherLeber$p.value
+Tabela
+
+pH0 = signif(FisherLeber$p.value, 1)
+pH1 = "0.05"
+
+tabelapH = rbind(c("p-vrednost", "alpha"), c(pH0, pH1))
+
+```
+
+```{r}
+
+
+#rownames(tabelapH) = c("", "p-vrednost")
+kable(tabelapH, col.names = NULL, caption = "Fisherjev eksaktni test", align = "c")%>% 
+    kable_styling(latex_options = c("full_width", "HOLD_position"), position = "center")
+
+```
+
+
+
+Na podlagi rezultat Fisherjevega eksaktnega testa zavrnemo ničelno hipotezo. Pri stopnji zaupanja 95 % trdimo, da obstaja povezanost med nujnostjo operacije in spolom prejemnika organa. Pri stopnji zaupanja 95 % trdimo, da so ženske presaditve pogosteje kategorizirane kot nujna presaditev napram moškim presaditvam.
+
+
+
+# 4. Zaključki
+
+Ugotovitve raziskave predstavljene v nalogi so skladne s predhodnimi ugotovitvami iz strokovne literature. Kljub temu, pa je pomembno opozoriti na njene omejitve. Vzorec naše raziskave izhaja iz ene same klinike, torej ugotovitev ne gre posploševati brez zadržkov. V mislih je potrebno imeti sociološke specifičnosti, ki vplivajo na potek in zdravljenje bolezni, na ozkem geografskem območju.
+
+V nadaljnih raziskavah bi bilo smiselno kategorijo žensk razdeliti na dve podkategoriji in ju posebej raziskavi. Raziskave namreč kažejo, da je pomembno razlikovati med ženskami v rodni dobi in ženskami po menopavzi (Burra et al). Hormonske spremembe, ki jih v ženskem telesu prinese menopauza, negativno vplivajo na poteke bolezni, povezane z okvarjo jeter.
+
+
+
+# Viri
+
+
+Burra, P., Martin, E. D., Gitto, S., & Villa, E. (2013). Influence of age and gender before and after liver transplantation. Liver Transplantation, 19(2), 122--134. [**Dostop**](https://doi.org/10.1002/lt.23574)
+
+Gradivo pri predmetu Uvod v Statistiko (Uporabna statistika 2022/23)
+
+Kušer, Maša - email korespondenca (nov 2022)
+
+Spletna stran Bundeszentrale für gesundheitliche Aufklärung (BZgA) [**Dostop**](https://www.organspende-info.de/organspende/transplantierbare-organe/lebertransplantation/)
+
