@@ -1,0 +1,207 @@
+---
+title: "OTS Naloga 1"
+author: "Lana Grunčić Krajnc"
+date: "06.01.2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(knitr)
+
+```
+
+## Naloga 1
+
+### Izračun za pričakovano vrednost spremenljivke X
+
+![**Izračun za pričakovano vrednost spremenljivke X**](ots_dn1_1.jpg)
+
+## Naloga 2
+
+
+Intuitivna smiselna cenilka za $\lambda$ je vzorčno povprečje. Tega primerjamo s populacijskim povprečjem. 
+
+Spodaj prikažemo, da je nepristranska, kar pomeni, da se z večanjem števila vzorcev vse bolj približujemo z vzorčnim povprečjem samemu populacijskemu povprečju.:
+
+```{r}
+cenilka = function(x){
+  return(sum(x)/length(x))}
+# definiramo funkcijo za simulacijo
+simN = function(N){ 
+  ocene = NULL
+  for(i in 1:N){
+    vzorec = rpois(n = 100,15) # vrednost lamba 15 je bila izbrana poljubno
+    ocene = c(ocene,cenilka(vzorec))}
+  return(mean(ocene))
+}
+
+
+# pozenemo za razlicno veliko vzorcev (vec vzorcev, bi nam moralo dati bolj natancno oceno pricakovane vrednosti)
+stVzorcev = seq(100,10000,by = 100)
+povprecjaSim = sapply(stVzorcev,simN)
+plot(stVzorcev,povprecjaSim,xlab="povprecje povprecij vzorcev",main="",type="b")
+abline(h=15,col="green") # populacijska pricakovana vrednost
+
+
+
+```
+
+
+
+## Naloga 3
+
+Na spodnjem prikazu se vidi, da se variabilnost z večanjem vzorca ne zmanjšuje, v primeru, ko vzamemo samo prvih 15 enot (posameznega) vzorca. Torej povprečje simulacij ne konvergira, torej ne moremo govoriti o doslednosti.
+
+```{r}
+cenilka = function(x){
+  return(sum(x)/length(x))}
+# definiramo funkcijo za simulacijo
+simN = function(n,N){ # n - velikost vzorca se spreminja
+  ocene = NULL
+  for(i in 1:N){
+    vzorec = rpois(n,15) # vrednost lamba 15 je bila izbrana poljubno
+    ocene = c(ocene,cenilka(vzorec[1:12]))} #ker m=12
+  return(ocene)
+}
+
+
+# doslednost
+velikostVzorca = seq(20,2000,by = 10)
+povpr = NULL
+for(i in velikostVzorca){
+  povpr = c(povpr,mean(simN(n = i,N = 1000)))}
+plot(velikostVzorca,povpr,xlab="velikost vzorca",
+     ylab="povprecje simulacij",main="",type="b")
+abline(h=15,col="green") # populacijska vrednost
+
+```
+
+
+## Naloga 4
+
+Na spodnjem prikazu vidimo, da se pričakovani vrednosti binomske in poissonove porazdelitve ujemata, torej lahko aproksimiramo eno z drugo.
+
+```{r}
+nb = 50
+x = sample(nb,10)
+#n = 10
+pb = 0.02
+# E(X) binomial = nb*pb
+E_xBin = nb*(dbinom(x, size = nb, prob = pb)) #E_xBin = 
+
+# E(X) pois
+E_xPois = nb*(dpois(x, lambda = nb*pb)) #E_xPois = 
+
+plot(E_xPois, col = "red", pch =0, xlab = "kvantil", ylab = "pričakovana vrednost")
+points(E_xBin, col = "blue", pch = 3)
+legend("topright", legend = c("Poisson","Binomial"), col = c("red", "blue"), cex=0.8, pch = c(0,3),
+       title="Porazdelitev")
+
+```
+
+
+## Naloga 5
+
+### Varianca Poissonove spremenljivke je večja od variance takšne binomske spremenljivke
+
+
+![**Varianca Poissonove spremenljivke je večja od variance takšne binomske spremenljivke**](ots_dn1_5.jpg)
+
+
+## Naloga 6
+
+Vidimo da so vse vrednosti večje od 0, kar pomeni, da je poiss vedno večji od binom
+
+```{r}
+#E_xBin = nb*(rbinom(x, size = nb, prob = pb)) #E_xBin = 
+
+# E(X) pois
+#E_xPois = nb*(rpois(x, lambda = nb*pb))
+
+#lambda = nb*pb
+#nb = lambda/pb
+#pb = lambda/nb
+
+#nb = 100
+#pb = 0.5
+#rpoiss = rpois(1000, nb*pb)
+#rbinomm = rbinom(1000, size=nb, prob = pb)
+#var(rpoiss)-var(rbinomm)
+
+set.seed(22)
+simLambda = function(N){
+  enakost = NULL
+  for(i in 1:N){
+    lambda = 1
+    pb = 0.5
+    nb = lambda/pb
+    #lambda = nb*pb
+    rpoiss1 = rpois(1000, nb*pb)
+    rbinomm1 = rbinom(1000, size=nb, prob = pb)
+    enakost = c(enakost,var(rpoiss1)-var(rbinomm1))} # izracunamo cenilko, jo dodamo v dolg vektor
+  return(enakost) 
+}
+
+
+rpoiss_minus_rbinom1 = sapply(10,simLambda) #10 ocen za nb = 2 ==> lambda = 2*0.5 = 1
+
+
+simLambda = function(N){
+  enakost = NULL
+  for(i in 1:N){
+    lambda = 6
+    pb = 0.5
+    nb = lambda/pb
+    #lambda = nb*pb
+    rpoiss1 = rpois(1000, nb*pb)
+    rbinomm1 = rbinom(1000, size=nb, prob = pb)
+    enakost = c(enakost,var(rpoiss1)-var(rbinomm1))} # izracunamo cenilko, jo dodamo v dolg vektor
+  return(enakost) 
+}
+
+
+rpoiss_minus_rbinom6 = sapply(10,simLambda) #10 ocen za pb = 0.2 ==> lambda = 2*0.2 = 0.4
+
+
+simLambda = function(N){
+  enakost = NULL
+  for(i in 1:N){
+    lambda = 15
+    pb = 0.5
+    nb = lambda/pb
+    #lambda = nb*pb
+    rpoiss1 = rpois(1000, nb*pb)
+    rbinomm1 = rbinom(1000, size=nb, prob = pb)
+    enakost = c(enakost,var(rpoiss1)-var(rbinomm1))} # izracunamo cenilko, jo dodamo v dolg vektor
+  return(enakost) 
+}
+
+
+rpoiss_minus_rbinom15 = sapply(10,simLambda) #10 ocen za pb = 0.02 ==> lambda = 2*0.02 = 0.04
+
+razlika_varpoiss_varbinom = cbind(lambda1 = rpoiss_minus_rbinom1, lambda6 = rpoiss_minus_rbinom6, lambda15 = rpoiss_minus_rbinom15)
+razlika_varpoiss_varbinom = as.data.frame(razlika_varpoiss_varbinom)
+razlika_varpoiss_varbinom <- tibble::rownames_to_column(razlika_varpoiss_varbinom, "VALUE")
+
+colnames(razlika_varpoiss_varbinom) = c("xx","lambda1", "lambda6", "lambda15")
+razlika_varpoiss_varbinom$xx = as.factor(razlika_varpoiss_varbinom$xx)
+
+ggplot(data=razlika_varpoiss_varbinom, aes(x=xx))+
+  geom_point(aes(y=lambda1, group =1, col ="blue"))+
+  geom_point(aes(y=lambda6, group =2), col="yellow")+
+  geom_point(aes(y=lambda15, group =3), col="pink")+
+  ylab("var(Poiss) - var (Binom) > 0")+
+  labs(title="Razlika med varianco Poisson in varianco Binomial je pozitivno število")+
+  theme(legend.position = "none")+
+  ylim(-5,10)
+```
+
+
+## Naloga 7
+
+### Izračun variance spremenljivke X
+
+![**Izračun variance spremenljivke X**](ots_dn1_7.jpg)
